@@ -32,4 +32,23 @@ public class ReservationMetrics {
                     .register(registry));
         }
     }
+
+    public void recordConfirmed(boolean replayed) {
+        if (replayed) {
+            idempotentReplayTotal.increment();
+        } else {
+            confirmedTotal.increment();
+        }
+    }
+
+    public void recordDeclined(DeclineReason reason, boolean replayed) {
+        if (replayed) {
+            idempotentReplayTotal.increment();
+        } else {
+            Counter counter = declinedTotals.get(reason);
+            if (counter != null) {
+                counter.increment();
+            }
+        }
+    }
 }

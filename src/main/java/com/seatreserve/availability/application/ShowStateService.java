@@ -18,13 +18,13 @@ public class ShowStateService {
     public Optional<Map<String, Object>> find(UUID showId) {
         return jdbcClient.sql("SELECT id, name, price_paise, total_seats, per_user_limit FROM shows WHERE id = ?")
                 .param(showId)
-                .query().singleRowOptional()
-                .map(row -> Map.of(
-                        "id", row.get("id"),
-                        "name", row.get("name"),
-                        "price_paise", row.get("price_paise"),
-                        "total_seats", row.get("total_seats"),
-                        "per_user_limit", row.get("per_user_limit")
-                ));
+                .query((rs, rowNum) -> Map.<String, Object>of(
+                        "id", rs.getObject("id"),
+                        "name", rs.getString("name"),
+                        "price_paise", rs.getLong("price_paise"),
+                        "total_seats", rs.getInt("total_seats"),
+                        "per_user_limit", rs.getInt("per_user_limit")
+                ))
+                .optional();
     }
 }

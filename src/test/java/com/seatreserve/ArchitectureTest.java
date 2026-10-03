@@ -31,8 +31,8 @@ public class ArchitectureTest {
 
     @ArchTest
     static final ArchRule retryNotOnTransactional = noClasses()
-            .that().isAnnotatedWith("org.springframework.retry.annotation.Retryable")
-            .should().beAnnotatedWith("org.springframework.transaction.annotation.Transactional")
+            .that().areAnnotatedWith(org.springframework.retry.annotation.Retryable.class)
+            .should().beAnnotatedWith(org.springframework.transaction.annotation.Transactional.class)
             .because("Retry and Transactional on the same bean cause proxy issues or transaction bounds issues.");
 
     @ArchTest

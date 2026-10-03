@@ -14,17 +14,21 @@ import java.util.List;
 public class SeatGaugeRefresher {
     private static final Logger log = LoggerFactory.getLogger(SeatGaugeRefresher.class);
     private final JdbcTemplate jdbcTemplate;
-    private final MeterRegistry registry;
+    private final MultiGauge seatsGauge;
 
     public SeatGaugeRefresher(JdbcTemplate jdbcTemplate, MeterRegistry registry) {
         this.jdbcTemplate = jdbcTemplate;
-        this.registry = registry;
+        this.seatsGauge = MultiGauge.builder("seats_available").register(registry);
     }
 
     @Scheduled(fixedDelayString = "${seats.metrics.gauge-refresh-ms:2000}")
     public void refresh() {
         try {
-            // Simplified for now, would update multigauges based on effective status and check invariant I4
+            List<MultiGauge.Row<?>> rows = jdbcTemplate.query(
+                "SELECT show_id, count(*) as c FROM seats WHERE status = 'available' GROUP BY show_id",
+                (rs, rowNum) -> MultiGauge.Row.of(io.micrometer.core.instrument.Tags.of("show_id", rs.getString("show_id")), rs.getInt("c"))
+            );
+            seatsGauge.register(rows, true);
         } catch (Exception e) {
             log.error("SeatGaugeRefresher failed", e);
         }

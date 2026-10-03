@@ -17,6 +17,9 @@ import javax.crypto.spec.SecretKeySpec;
 @EnableWebSecurity
 public class SecurityConfig {
 
+    @org.springframework.beans.factory.annotation.Value("${seats.auth.secret}")
+    private String jwtSecret;
+
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
@@ -34,7 +37,6 @@ public class SecurityConfig {
 
     @Bean
     public JwtDecoder jwtDecoder() {
-        String secret = "dev-secret-key-at-least-32-bytes-long-for-hs256";
-        return NimbusJwtDecoder.withSecretKey(new SecretKeySpec(secret.getBytes(), "HMACSHA256")).build();
+        return NimbusJwtDecoder.withSecretKey(new SecretKeySpec(jwtSecret.getBytes(), "HMACSHA256")).build();
     }
 }

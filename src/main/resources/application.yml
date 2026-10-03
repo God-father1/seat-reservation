@@ -14,7 +14,7 @@ spring:
     password: ${DB_PASSWORD:postgres}
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:30}
-      connection-timeout: 250
+      connection-timeout: 10000
   flyway:
     enabled: true
     user: ${DB_USER:postgres}
@@ -48,12 +48,19 @@ management:
         include: health,prometheus
   endpoint:
     health:
+      probes:
+        enabled: true
       group:
         readiness:
           include: readinessState,db
 
 server:
   shutdown: graceful
+  tomcat:
+    max-connections: 30000
+    accept-count: 10000
+    threads:
+      max: 200
 
 logging:
   structured:

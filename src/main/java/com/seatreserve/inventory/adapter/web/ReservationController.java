@@ -21,9 +21,11 @@ import java.util.UUID;
 public class ReservationController {
 
     private final ReserveService reserveService;
+    private final com.seatreserve.shared.observability.ReservationMetrics metrics;
 
-    public ReservationController(ReserveService reserveService) {
+    public ReservationController(ReserveService reserveService, com.seatreserve.shared.observability.ReservationMetrics metrics) {
         this.reserveService = reserveService;
+        this.metrics = metrics;
     }
 
     @PostMapping
@@ -51,6 +53,7 @@ public class ReservationController {
         ClaimResult result = reserveService.reserve(command);
 
         if (result instanceof ClaimResult.Confirmed confirmed) {
+            metrics.recordConfirmed(confirmed.replayed());
             return ResponseEntity.status(HttpStatus.CREATED)
                     .header("Idempotent-Replay", String.valueOf(confirmed.replayed()))
                     .body(Map.of(
@@ -64,6 +67,7 @@ public class ReservationController {
                             "line_items", confirmed.lineItems()
                     ));
         } else if (result instanceof ClaimResult.Declined declined) {
+            metrics.recordDeclined(declined.reason(), declined.replayed());
             var problem = Problems.of(declined.reason().getHttpStatus(), declined.reason().name(), declined.reason().getWireCode(), declined.details());
             return ResponseEntity.status(declined.reason().getHttpStatus())
                     .header("Idempotent-Replay", String.valueOf(declined.replayed()))

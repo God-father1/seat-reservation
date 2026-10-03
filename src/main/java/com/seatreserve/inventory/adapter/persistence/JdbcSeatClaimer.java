@@ -7,12 +7,9 @@ import com.seatreserve.inventory.domain.ClaimResult;
 import com.seatreserve.inventory.domain.DeclineReason;
 import com.seatreserve.inventory.domain.ReserveCommand;
 import com.seatreserve.inventory.port.SeatClaimer;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.SqlOutParameter;
-import org.springframework.jdbc.core.simple.SimpleJdbcCall;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.stereotype.Repository;
 
-import java.sql.Types;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -20,36 +17,28 @@ import java.util.UUID;
 
 @Repository
 public class JdbcSeatClaimer implements SeatClaimer {
-    private final JdbcTemplate jdbcTemplate;
+    private final JdbcClient jdbcClient;
     private final ObjectMapper mapper;
 
-    public JdbcSeatClaimer(JdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+    public JdbcSeatClaimer(JdbcClient jdbcClient) {
+        this.jdbcClient = jdbcClient;
         this.mapper = new ObjectMapper().registerModule(new JavaTimeModule());
     }
 
     @Override
     public ClaimResult claim(ReserveCommand command) {
-        SimpleJdbcCall call = new SimpleJdbcCall(jdbcTemplate)
-                .withFunctionName("reserve_seats")
-                .declareParameters(
-                        new SqlOutParameter("out_status", Types.INTEGER),
-                        new SqlOutParameter("out_body", Types.VARCHAR)
-                );
-
         try {
-            java.sql.Array textArray = jdbcTemplate.getDataSource().getConnection().createArrayOf("text", command.seats().toArray());
-            Map<String, Object> result = call.execute(
-                    command.showId(),
-                    command.userId(),
-                    textArray,
-                    command.idempotencyKey(),
-                    command.requestHash(),
-                    command.mode().wireValue()
-            );
+            Map<String, Object> result = jdbcClient.sql("SELECT out_status, out_body FROM reserve_seats(:p_show_id, :p_user_id, :p_seats, :p_idem, :p_hash, :p_mode)")
+                    .param("p_show_id", command.showId())
+                    .param("p_user_id", command.userId())
+                    .param("p_seats", command.seats().toArray(String[]::new))
+                    .param("p_idem", command.idempotencyKey())
+                    .param("p_hash", command.requestHash())
+                    .param("p_mode", command.mode().wireValue())
+                    .query().singleRow();
 
             Integer status = (Integer) result.get("out_status");
-            String bodyJson = (String) result.get("out_body");
+            String bodyJson = result.get("out_body").toString();
             Map<String, Object> body = mapper.readValue(bodyJson, new TypeReference<Map<String, Object>>() {});
             
             boolean replayed = Boolean.TRUE.equals(body.get("replayed"));
@@ -85,6 +74,8 @@ public class JdbcSeatClaimer implements SeatClaimer {
                 DeclineReason reason = DeclineReason.fromWireCode(code).orElse(DeclineReason.NOT_FOUND);
                 return new ClaimResult.Declined(reason, body, replayed);
             }
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Exception e) {
             throw new RuntimeException("Failed to claim seats", e);
         }

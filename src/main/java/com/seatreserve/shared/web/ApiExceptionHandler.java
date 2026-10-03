@@ -18,6 +18,12 @@ public class ApiExceptionHandler {
                 .body(Problems.of(401, "Unauthenticated", "unauthenticated", Map.of()));
     }
 
+    @ExceptionHandler({org.springframework.jdbc.CannotGetJdbcConnectionException.class, org.springframework.retry.ExhaustedRetryException.class})
+    public ResponseEntity<ProblemDetail> handlePoolExhaustion(Exception e) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .body(Problems.of(429, "Too Many Requests", "system_overload", Map.of()));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Object> handleAll(Exception e) {
         if (e instanceof ErrorResponse errorResponse) {
