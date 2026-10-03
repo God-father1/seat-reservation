@@ -1,0 +1,61 @@
+spring:
+  application:
+    name: seat-reserve-service
+  threads:
+    virtual:
+      enabled: true
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    deserialization:
+      fail-on-unknown-properties: true
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/seats}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:30}
+      connection-timeout: 250
+  flyway:
+    enabled: true
+    user: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:postgres}
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/seats}
+
+seats:
+  auth:
+    secret: ${JWT_SECRET:dev-secret-key-at-least-32-bytes-long-for-hs256}
+  jobs:
+    sweep-interval-ms: 1000
+    reconcile-interval-ms: 10000
+  metrics:
+    gauge-shows: 20
+    gauge-refresh-ms: 2000
+  read:
+    pool-size: ${READ_POOL_SIZE:20}
+
+management:
+  defaults:
+    metrics:
+      export:
+        enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,prometheus
+  endpoint:
+    health:
+      group:
+        readiness:
+          include: readinessState,db
+
+server:
+  shutdown: graceful
+
+logging:
+  structured:
+    format:
+      console: ${LOG_FORMAT:}
