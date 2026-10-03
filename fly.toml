@@ -1,0 +1,19 @@
+app = "seat-reserve-service"
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[[http_service]]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[http_service.checks]]
+  path = "/readyz"
+  grace_period = "35s"
+  interval = "15s"
+  timeout = "2s"
