@@ -1,41 +1,34 @@
-# Fly.io Deployment Script for seat-reserve-service
-Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host " Fly.io Deployment — seat-reserve-service " -ForegroundColor Cyan
-Write-Host "==========================================" -ForegroundColor Cyan
+Write-Output '=========================================='
+Write-Output ' Fly.io Deployment — seat-reserve-service '
+Write-Output '=========================================='
 
-# 1. Install flyctl if missing
+$flyDir = $env:USERPROFILE + '\.fly\bin'
 if (-not (Get-Command flyctl -ErrorAction SilentlyContinue)) {
-    Write-Host "Installing flyctl CLI..." -ForegroundColor Yellow
-    iwr https://fly.io/install.ps1 -useb | iex
-    $env:Path += ";$env:USERPROFILE\.fly\bin"
+    if (Test-Path ($flyDir + '\flyctl.exe')) {
+        $env:Path = $env:Path + ';' + $flyDir
+    } else {
+        Write-Output 'Installing flyctl...'
+        iwr https://fly.io/install.ps1 -useb | iex
+        $env:Path = $env:Path + ';' + $flyDir
+    }
 }
 
-# 2. Login check
-Write-Host "Checking Fly.io authentication..." -ForegroundColor Yellow
+Write-Output 'Checking Fly.io login...'
 flyctl auth whoami
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Please log in to Fly.io..." -ForegroundColor Yellow
-    flyctl auth login
-}
 
-# 3. Create app and Postgres DB if not exist
-Write-Host "Launching Fly.io app and Postgres database..." -ForegroundColor Yellow
-flyctl apps create seat-reserve-service --region bom 2>$null
+Write-Output 'Creating Fly app...'
+flyctl apps create seat-reserve-service --region bom
 
-# 4. Attach or create Postgres database
-Write-Host "Creating Fly Postgres database..." -ForegroundColor Yellow
-flyctl postgres create --name seat-reserve-service-db --region bom --initial-cluster-size 1 --vm-size-shared-cpu-1x --volume-size 10 2>$null
-flyctl postgres attach seat-reserve-service-db --app seat-reserve-service 2>$null
+Write-Output 'Creating Fly Postgres database...'
+flyctl postgres create --name seat-reserve-service-db --region bom --initial-cluster-size 1 --vm-size-shared-cpu-1x --volume-size 10
+flyctl postgres attach seat-reserve-service-db --app seat-reserve-service
 
-# 5. Set secrets
-Write-Host "Setting secrets (JWT_SECRET)..." -ForegroundColor Yellow
-flyctl secrets set JWT_SECRET="dev-secret-key-at-least-32-bytes-long-for-hs256" --app seat-reserve-service
+Write-Output 'Setting JWT_SECRET secret...'
+flyctl secrets set JWT_SECRET='dev-secret-key-at-least-32-bytes-long-for-hs256' --app seat-reserve-service
 
-# 6. Deploy app
-Write-Host "Deploying container to Fly.io..." -ForegroundColor Green
+Write-Output 'Deploying to Fly.io...'
 flyctl deploy --app seat-reserve-service
 
-Write-Host "==========================================" -ForegroundColor Cyan
-Write-Host " Deployment Complete!" -ForegroundColor Green
-Write-Host " App URL: https://seat-reserve-service.fly.dev" -ForegroundColor Cyan
-Write-Host "==========================================" -ForegroundColor Cyan
+Write-Output '=========================================='
+Write-Output ' Deployment Complete: https://seat-reserve-service.fly.dev'
+Write-Output '=========================================='
