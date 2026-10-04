@@ -10,15 +10,15 @@ spring:
       fail-on-unknown-properties: true
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/seats}
-    username: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    username: ${DB_USER:${POSTGRES_USER:${PGUSER:postgres}}}
+    password: ${DB_PASSWORD:${POSTGRES_PASSWORD:${PGPASSWORD:postgres}}}
     hikari:
       maximum-pool-size: ${DB_POOL_SIZE:30}
       connection-timeout: 10000
   flyway:
     enabled: true
-    user: ${DB_USER:postgres}
-    password: ${DB_PASSWORD:postgres}
+    user: ${DB_USER:${POSTGRES_USER:${PGUSER:postgres}}}
+    password: ${DB_PASSWORD:${POSTGRES_PASSWORD:${PGPASSWORD:postgres}}}
     url: ${DB_URL:jdbc:postgresql://localhost:5432/seats}
 
 seats:
