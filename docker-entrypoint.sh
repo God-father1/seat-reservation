@@ -4,9 +4,20 @@ set -e
 if [ -z "$DB_URL" ]; then
     TARGET_URL="${DATABASE_URL:-${POSTGRES_URL:-$DATABASE_PUBLIC_URL}}"
     if [ -n "$TARGET_URL" ]; then
-        # Convert postgres:// or postgresql:// to jdbc:postgresql://
-        JDBC_URL=$(echo "$TARGET_URL" | sed -e 's|^postgres://|jdbc:postgresql://|' -e 's|^postgresql://|jdbc:postgresql://|')
-        export DB_URL="$JDBC_URL"
+        # Parse postgresql://user:password@host:port/database
+        # Strip scheme
+        WITHOUT_SCHEME=$(echo "$TARGET_URL" | sed -e 's|^postgres://||' -e 's|^postgresql://||')
+        # Extract user:password (everything before @)
+        USERINFO=$(echo "$WITHOUT_SCHEME" | sed 's|@.*||')
+        # Extract host:port/database (everything after @)
+        HOSTPART=$(echo "$WITHOUT_SCHEME" | sed 's|^[^@]*@||')
+        # Split user and password
+        PARSED_USER=$(echo "$USERINFO" | cut -d: -f1)
+        PARSED_PASS=$(echo "$USERINFO" | cut -d: -f2-)
+        # Build clean JDBC URL (no credentials in URL)
+        export DB_URL="jdbc:postgresql://${HOSTPART}"
+        export DB_USER="$PARSED_USER"
+        export DB_PASSWORD="$PARSED_PASS"
     elif [ -n "$PGHOST" ] || [ -n "$POSTGRES_HOST" ]; then
         HOST="${PGHOST:-$POSTGRES_HOST}"
         PORT="${PGPORT:-${POSTGRES_PORT:-5432}}"
