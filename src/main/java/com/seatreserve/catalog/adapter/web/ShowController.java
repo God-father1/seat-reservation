@@ -51,18 +51,18 @@ public class ShowController {
         int totalSeats = ((Number) show.get("total_seats")).intValue();
         boolean invariantHolds = (available + held + confirmed) == totalSeats;
 
-        return ResponseEntity.ok(Map.of(
-            "id", show.get("id"),
-            "name", show.get("name"),
-            "price_paise", show.get("price_paise"),
-            "total_seats", totalSeats,
-            "per_user_limit", show.get("per_user_limit"),
-            "hold_ttl_sec", show.get("hold_ttl_sec"),
-            "sales_open_at", show.get("sales_open_at") != null ? show.get("sales_open_at") : null,
-            "seats_available", available,
-            "seats_held", held,
-            "seats_confirmed", confirmed,
-            "invariant_holds", invariantHolds
+        return ResponseEntity.ok(Map.ofEntries(
+            Map.entry("id", show.get("id")),
+            Map.entry("name", show.get("name")),
+            Map.entry("price_paise", show.get("price_paise")),
+            Map.entry("total_seats", totalSeats),
+            Map.entry("per_user_limit", show.get("per_user_limit")),
+            Map.entry("hold_ttl_sec", show.get("hold_ttl_sec")),
+            Map.entry("sales_open_at", show.get("sales_open_at") != null ? show.get("sales_open_at") : ""),
+            Map.entry("seats_available", available),
+            Map.entry("seats_held", held),
+            Map.entry("seats_confirmed", confirmed),
+            Map.entry("invariant_holds", invariantHolds)
         ));
     }
 }

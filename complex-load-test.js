@@ -1,7 +1,11 @@
 const crypto = require('crypto');
 const http = require('https');
 
-const JWT_SECRET = 'dev-secret-key-at-least-32-bytes-long-for-hs256';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error("ERROR: JWT_SECRET environment variable is missing.");
+  process.exit(1);
+}
 const baseUrl = process.argv[2] || 'https://seat-reservation-production-fee9.up.railway.app';
 const TOTAL_REQUESTS = 30000;
 const MAX_CONCURRENT = 5000;
@@ -43,14 +47,15 @@ function request(method, path, body, token) {
 const generateSeats = (prefix, count) => Array.from({length: count}, (_, i) => `${prefix}${i + 1}`);
 
 // Shared State
-const shows = []; // { id, allSeats: [] }
+const shows = []; // { id, allSeats: [], salesOpenAt: Date }
 const activeReservations = []; // { reservationId, token }
 
 const stats = {
   create_show_ok: 0,
   create_show_fail: 0,
   reserve_ok: 0,
-  reserve_conflict: 0,
+  reserve_early_rejected: 0, // 409 sales_not_open
+  reserve_conflict: 0, // 409/422 other
   reserve_fail: 0,
   cancel_ok: 0,
   cancel_fail: 0,
@@ -66,11 +71,16 @@ function recordGeneralError(status) {
 
 async function taskCreateShow() {
   const isMultiTier = Math.random() > 0.5;
+  // Sale opens randomly between now and 30 seconds from now
+  const saleOpenDelayMs = Math.floor(Math.random() * 30000); 
+  const salesOpenAt = new Date(Date.now() + saleOpenDelayMs);
+
   const payload = {
     name: `Show ${crypto.randomUUID().substring(0, 8)}`,
     price_paise: 500000,
     per_user_limit: 4,
-    hold_ttl_sec: 300
+    hold_ttl_sec: 300,
+    salesOpenAt: salesOpenAt.toISOString()
   };
   
   let allSeats = [];
@@ -92,7 +102,7 @@ async function taskCreateShow() {
     const res = await request('POST', '/shows', payload, adminToken);
     if (res.status === 201) {
       const showId = JSON.parse(res.body).id;
-      shows.push({ id: showId, allSeats });
+      shows.push({ id: showId, allSeats, salesOpenAt });
       stats.create_show_ok++;
     } else {
       recordGeneralError(res.status);
@@ -129,7 +139,11 @@ async function taskReserve() {
         activeReservations.push({ reservationId: match[1], token: userToken });
       }
     } else if (res.status === 409 || res.status === 422) {
-      stats.reserve_conflict++;
+      if (res.body.includes('sales_not_open')) {
+        stats.reserve_early_rejected++;
+      } else {
+        stats.reserve_conflict++;
+      }
     } else {
       recordGeneralError(res.status);
       stats.reserve_fail++;
@@ -142,7 +156,6 @@ async function taskReserve() {
 async function taskCancel() {
   if (activeReservations.length === 0) return taskReserve();
   
-  // Pop a random reservation
   const idx = Math.floor(Math.random() * activeReservations.length);
   const { reservationId, token } = activeReservations.splice(idx, 1)[0];
   
@@ -160,10 +173,15 @@ async function taskCancel() {
 }
 
 async function run() {
+  // Wait a few seconds before starting to ensure some initial shows are created
+  console.log('Pre-provisioning a few shows...');
+  for (let i = 0; i < 5; i++) {
+    await taskCreateShow();
+  }
+
   console.log(`Preparing to dispatch ${TOTAL_REQUESTS} mixed requests...`);
   console.log(`Max Concurrency: ${MAX_CONCURRENT}`);
   
-  // Generate task list
   const tasks = [];
   for (let i = 0; i < TOTAL_REQUESTS; i++) {
     const r = Math.random();
@@ -195,7 +213,7 @@ async function run() {
         });
       }
     }
-    next(); // Start the engine
+    next();
   });
   
   console.log('\n--- LOAD TEST COMPLETED ---');
