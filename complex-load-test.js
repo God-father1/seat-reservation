@@ -80,7 +80,7 @@ async function taskCreateShow() {
     price_paise: 500000,
     per_user_limit: 4,
     hold_ttl_sec: 300,
-    salesOpenAt: salesOpenAt.toISOString()
+    sales_open_at: salesOpenAt.toISOString()
   };
   
   let allSeats = [];
