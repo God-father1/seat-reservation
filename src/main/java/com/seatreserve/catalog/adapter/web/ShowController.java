@@ -36,7 +36,7 @@ public class ShowController {
     @GetMapping("/{showId}")
     public ResponseEntity<?> getShow(@PathVariable UUID showId) {
         var rows = jdbcTemplate.queryForList(
-            "SELECT s.id, s.name, s.price_paise, s.total_seats, s.per_user_limit, s.hold_ttl_sec, " +
+            "SELECT s.id, s.name, s.price_paise, s.total_seats, s.per_user_limit, s.hold_ttl_sec, s.sales_open_at, " +
             "  (SELECT count(*) FROM seats WHERE show_id = s.id AND status = 'available') AS available, " +
             "  (SELECT count(*) FROM seats WHERE show_id = s.id AND status = 'held') AS held, " +
             "  (SELECT count(*) FROM seats WHERE show_id = s.id AND status = 'confirmed') AS confirmed " +
@@ -58,6 +58,7 @@ public class ShowController {
             "total_seats", totalSeats,
             "per_user_limit", show.get("per_user_limit"),
             "hold_ttl_sec", show.get("hold_ttl_sec"),
+            "sales_open_at", show.get("sales_open_at") != null ? show.get("sales_open_at") : null,
             "seats_available", available,
             "seats_held", held,
             "seats_confirmed", confirmed,

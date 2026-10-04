@@ -28,8 +28,8 @@ public class ShowProvisioningService {
         }
 
         UUID showId = UUID.randomUUID();
-        jdbcTemplate.update("INSERT INTO shows (id, name, price_paise, total_seats, per_user_limit, hold_ttl_sec) VALUES (?, ?, ?, ?, ?, ?)",
-                showId, request.name(), request.pricePaise(), allLabels.size(), request.perUserLimit(), request.holdTtlSec());
+        jdbcTemplate.update("INSERT INTO shows (id, name, price_paise, total_seats, per_user_limit, hold_ttl_sec, sales_open_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                showId, request.name(), request.pricePaise(), allLabels.size(), request.perUserLimit(), request.holdTtlSec(), request.salesOpenAt());
 
         String sql = "INSERT INTO seats (show_id, seat_no, label, section, price_paise) " +
                      "SELECT ?, ordinality, label, section, price_paise " +

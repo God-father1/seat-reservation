@@ -11,7 +11,8 @@ public record CreateShowRequest(
         @Positive long pricePaise,
         @Positive int perUserLimit,
         @Positive int holdTtlSec,
-        List<Tier> tiers
+        List<Tier> tiers,
+        java.time.OffsetDateTime salesOpenAt
 ) {
     public record Tier(String name, long pricePaise, List<String> seats) {}
 
