@@ -1,5 +1,4 @@
 const crypto = require('crypto');
-const http = require('https');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -22,25 +21,40 @@ function createJwt(subject, isAdmin = false) {
 
 const adminToken = createJwt(crypto.randomUUID(), true);
 
-function request(method, path, body, token) {
+// Single shared agent — reuses TCP connections across all 30k requests
+const https = require('https');
+const sharedAgent = new https.Agent({ keepAlive: true, maxSockets: 500 });
+
+function request(method, path, body, token, retries = 1) {
   return new Promise((resolve, reject) => {
     const url = new URL(baseUrl + path);
-    const options = {
+    const req = https.request(url, {
       method,
+      timeout: 15000,
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       },
-      agent: new http.Agent({ keepAlive: true, maxSockets: 5000 })
-    };
-    const req = require(url.protocol.slice(0, -1)).request(url, options, (res) => {
+      agent: sharedAgent
+    }, (res) => {
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => resolve({ status: res.statusCode, body: data }));
     });
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('timeout'));
+    });
     req.on('error', reject);
     if (body) req.write(JSON.stringify(body));
     req.end();
+  }).catch(err => {
+    if (retries > 0) {
+      // backoff 200-500ms then retry once
+      return new Promise(r => setTimeout(r, 200 + Math.random() * 300))
+        .then(() => request(method, path, body, token, retries - 1));
+    }
+    throw err;
   });
 }
 
